@@ -11,38 +11,12 @@ aqua-monitor/
 ├── app.py                     ← Dashboard web (Streamlit)
 ├── simulador_sensor.py        ← Gerador de dados fictícios
 ├── requirements.txt           ← Dependências Python
-├── firebase-credentials.json  ← ⚠️ VOCÊ CRIA ESTE ARQUIVO (ver abaixo)
 └── README.md
 ```
 
 ---
 
-## 🔑 Passo 1 — Obter as Credenciais do Firebase
-
-1. Acesse o [Firebase Console](https://console.firebase.google.com)
-2. Selecione seu projeto (ou crie um novo)
-3. Vá em **Configurações do Projeto** (ícone de engrenagem)
-4. Clique na aba **Contas de Serviço**
-5. Clique em **Gerar Nova Chave Privada**
-6. Renomeie o arquivo baixado para `firebase-credentials.json`
-7. **Coloque-o na mesma pasta** que `app.py` e `simulador_sensor.py`
-
-> ⚠️ **NUNCA suba esse arquivo para o GitHub ou compartilhe publicamente!**
-
----
-
-## 🗄️ Passo 2 — Configurar o Firestore
-
-1. No Firebase Console, vá em **Firestore Database**
-2. Clique em **Criar banco de dados**
-3. Escolha o modo **Produção** (ou Teste para simplificar)
-4. Selecione a região mais próxima (ex: `southamerica-east1` — São Paulo)
-
-A coleção `medicoes` será criada **automaticamente** pelo simulador na primeira execução.
-
----
-
-## 📦 Passo 3 — Instalar Dependências
+## 📦 Passo 1 — Instalar Dependências
 
 ```bash
 pip install -r requirements.txt
@@ -56,7 +30,7 @@ pip install streamlit firebase-admin pandas plotly
 
 ---
 
-## ▶️ Passo 4 — Executar o Projeto
+## ▶️ Passo 2 — Executar o Projeto
 
 ### Terminal 1 — Iniciar o Simulador
 
