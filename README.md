@@ -1,0 +1,131 @@
+# 🦐 AquaMonitor — Guia de Configuração e Uso
+
+Sistema IoT para monitoramento de tanque de camarão (carcinicultura).
+
+---
+
+## 📁 Estrutura de Arquivos
+
+```
+aqua-monitor/
+├── app.py                     ← Dashboard web (Streamlit)
+├── simulador_sensor.py        ← Gerador de dados fictícios
+├── requirements.txt           ← Dependências Python
+├── firebase-credentials.json  ← ⚠️ VOCÊ CRIA ESTE ARQUIVO (ver abaixo)
+└── README.md
+```
+
+---
+
+## 🔑 Passo 1 — Obter as Credenciais do Firebase
+
+1. Acesse o [Firebase Console](https://console.firebase.google.com)
+2. Selecione seu projeto (ou crie um novo)
+3. Vá em **Configurações do Projeto** (ícone de engrenagem)
+4. Clique na aba **Contas de Serviço**
+5. Clique em **Gerar Nova Chave Privada**
+6. Renomeie o arquivo baixado para `firebase-credentials.json`
+7. **Coloque-o na mesma pasta** que `app.py` e `simulador_sensor.py`
+
+> ⚠️ **NUNCA suba esse arquivo para o GitHub ou compartilhe publicamente!**
+
+---
+
+## 🗄️ Passo 2 — Configurar o Firestore
+
+1. No Firebase Console, vá em **Firestore Database**
+2. Clique em **Criar banco de dados**
+3. Escolha o modo **Produção** (ou Teste para simplificar)
+4. Selecione a região mais próxima (ex: `southamerica-east1` — São Paulo)
+
+A coleção `medicoes` será criada **automaticamente** pelo simulador na primeira execução.
+
+---
+
+## 📦 Passo 3 — Instalar Dependências
+
+```bash
+pip install -r requirements.txt
+```
+
+Ou manualmente:
+
+```bash
+pip install streamlit firebase-admin pandas plotly
+```
+
+---
+
+## ▶️ Passo 4 — Executar o Projeto
+
+### Terminal 1 — Iniciar o Simulador
+
+```bash
+python simulador_sensor.py
+```
+
+O simulador começa a gravar medições no Firestore a cada **5 segundos**.
+A cada ~60 ciclos (~5 min), ele simula um **evento crítico de baixo O₂**
+para demonstrar o alerta vermelho no dashboard.
+
+### Terminal 2 — Iniciar o Dashboard
+
+```bash
+streamlit run app.py
+```
+
+O dashboard abre automaticamente em `http://localhost:8501`.
+
+---
+
+## 📱 Acesso pelo Celular (Demonstração)
+
+Para acessar o dashboard pelo celular durante a apresentação:
+
+1. Certifique-se que o PC e o celular estão na **mesma rede Wi-Fi**
+2. Descubra o IP do PC:
+   - Windows: `ipconfig` no CMD
+   - Linux/Mac: `ifconfig` ou `ip addr`
+3. Acesse no celular: `http://<IP-DO-PC>:8501`
+
+---
+
+## 🔑 Estrutura do Documento no Firestore
+
+Cada documento na coleção `medicoes` possui:
+
+```json
+{
+  "timestamp":   "2025-06-02T14:30:00",
+  "oxigenio":    6.42,
+  "temperatura": 28.3,
+  "ph":          7.98
+}
+```
+
+---
+
+## 🚨 Limites e Alertas
+
+| Variável    | Faixa Ideal | Alerta Crítico |
+|-------------|-------------|----------------|
+| Oxigênio    | > 5.0 mg/L  | < 3.0 mg/L 🔴  |
+| Temperatura | 26–32°C     | Fora da faixa  |
+| pH          | 7.5–8.5     | Fora da faixa  |
+
+---
+
+## 🛠️ Troubleshooting
+
+**Erro: `firebase-credentials.json not found`**
+→ Verifique se o arquivo está na mesma pasta que os scripts.
+
+**Erro: `PERMISSION_DENIED` no Firestore**
+→ No Firebase Console, ajuste as regras do Firestore para permitir leitura/escrita.
+
+**Dashboard não atualiza**
+→ Certifique-se que o `simulador_sensor.py` está rodando em outro terminal.
+
+**Celular não acessa o dashboard**
+→ Verifique se o firewall do PC está bloqueando a porta 8501.
+→ Tente: `streamlit run app.py --server.address 0.0.0.0`
