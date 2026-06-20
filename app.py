@@ -12,9 +12,11 @@ COMO USAR:
   4. Acesse pelo celular: http://<ip-da-maquina>:8501
 ═══════════════════════════════════════════════════════════════════
 """
-
 import time
 from datetime import datetime
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -34,6 +36,160 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  CONFIGURAÇÕES DE ALERTA POR E-MAIL (SMTP)
+# ═══════════════════════════════════════════════════════════════════════════════
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 465  # Porta padrão para conexões seguras SSL
+EMAIL_REMETENTE = "gui27fs@gmail.com"
+EMAIL_SENHA = "gfkx yxil dgtz rkca"  # Senha de aplicativo gerada no Google Accounts
+EMAIL_DESTINATARIO = "brunasrbarbosa@gmail.com"
+
+# Intervalo mínimo entre alertas para o mesmo parâmetro (300s = 5 minutos)
+INTERVALO_ALERTA_SEGUNDOS = 300
+
+
+@st.cache_resource
+def obter_controle_alertas():
+    """
+    Mantém um dicionário global em memória (persistido entre os re-runs do Streamlit)
+    para registrar o timestamp (time.time()) do último e-mail de alerta enviado por parâmetro.
+    """
+    return {"ultimos_alertas": {}}
+
+
+def enviar_email_alerta(parametro, valor_atual, faixa_ideal, horario_medicao):
+    """
+    Monta e envia uma mensagem de e-mail formatada em HTML usando smtplib.
+    """
+    # Se ainda estiver com os valores padrão de exemplo, apenas registra no console sem tentar enviar
+    if EMAIL_REMETENTE == "seu-email@gmail.com" or EMAIL_SENHA == "sua-senha-de-aplicativo":
+        st.warning(f"⚠️ Alerta gerado para {parametro}: {valor_atual}, mas o e-mail não foi enviado porque as credenciais SMTP não foram configuradas no código.")
+        print(f"[Aviso] Alerta para {parametro} ({valor_atual}) não enviado - credenciais não configuradas.")
+        return True  # Retorna True para fingir sucesso na simulação sem travar o app
+        
+    msg = MIMEMultipart()
+    msg['From'] = EMAIL_REMETENTE
+    msg['To'] = EMAIL_DESTINATARIO
+    msg['Subject'] = f"🦐 [SmartShrimp] ALERTA: {parametro} Fora da Faixa Ideal!"
+
+    corpo_html = f"""
+    <html>
+      <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #071525; color: #e2f3fb; padding: 20px; margin: 0;">
+        <div style="max-width: 500px; margin: 0 auto; background: linear-gradient(145deg, #0a1c32 0%, #0c2037 100%); border: 1px solid rgba(255,255,255,0.05); border-left: 5px solid #ff3c3c; border-radius: 18px; padding: 25px; box-shadow: 0 8px 32px rgba(0,0,0,0.45);">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <span style="font-size: 3rem;">🦐</span>
+            <h2 style="font-family: 'Rajdhani', sans-serif; color: #e2f3fb; margin: 10px 0 0; letter-spacing: 2px;">SmartShrimp</h2>
+            <p style="color: #3a8fb5; font-size: 0.8rem; letter-spacing: 2px; text-transform: uppercase; margin: 5px 0 0;">Alerta de Telemetria</p>
+          </div>
+          
+          <div style="background: rgba(255,60,60,0.1); border: 1px solid rgba(255,60,60,0.3); border-radius: 12px; padding: 15px; margin-bottom: 20px; text-align: center;">
+            <strong style="color: #ff7070; font-size: 1.1rem; display: block; margin-bottom: 5px;">⚠️ PARÂMETRO FORA DO LIMITE</strong>
+            <span style="color: #ff9f9f; font-size: 0.9rem;">O sistema detectou uma variação crítica no Tanque 01.</span>
+          </div>
+
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.95rem;">
+            <tr>
+              <td style="padding: 8px 0; color: #3a7fa0; font-weight: bold; width: 40%;">Parâmetro:</td>
+              <td style="padding: 8px 0; color: #e2f3fb; font-weight: bold;">{parametro}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #3a7fa0; font-weight: bold;">Valor Lido:</td>
+              <td style="padding: 8px 0; color: #ff4f4f; font-weight: bold; font-size: 1.2rem;">{valor_atual}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #3a7fa0; font-weight: bold;">Faixa Ideal:</td>
+              <td style="padding: 8px 0; color: #00d4aa; font-weight: bold;">{faixa_ideal}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #3a7fa0; font-weight: bold;">Horário:</td>
+              <td style="padding: 8px 0; color: #e2f3fb;">{horario_medicao}</td>
+            </tr>
+          </table>
+
+          <div style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 15px; text-align: center; font-size: 0.8rem; color: #1e5570;">
+            Trava de segurança anti-flood ativa. Novos alertas para <b>{parametro}</b> serão ignorados pelos próximos {INTERVALO_ALERTA_SEGUNDOS // 60} minutos.
+          </div>
+        </div>
+      </body>
+    </html>
+    """
+    msg.attach(MIMEText(corpo_html, 'html'))
+
+    try:
+        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as server:
+            server.login(EMAIL_REMETENTE, EMAIL_SENHA)
+            server.sendmail(EMAIL_REMETENTE, [EMAIL_DESTINATARIO], msg.as_string())
+        print(f"📧 [Sucesso] E-mail de alerta enviado para {parametro}: {valor_atual}")
+        return True
+    except Exception as e:
+        print(f"❌ [Erro] Falha ao enviar e-mail de alerta: {e}")
+        st.error(f"Erro ao disparar e-mail de alerta: {e}")
+        return False
+
+
+def verificar_e_enviar_alertas(ultima_leitura):
+    """
+    Verifica se a última leitura está fora das faixas ideais e dispara o e-mail de alerta
+    caso o intervalo do anti-flood já tenha se passado para o parâmetro em questão.
+    """
+    o2 = float(ultima_leitura["oxigenio"])
+    temp = float(ultima_leitura["temperatura"])
+    ph = float(ultima_leitura["ph"])
+    ts_medicao = ultima_leitura["timestamp"]
+    
+    ts_str = ts_medicao.strftime("%d/%m/%Y %H:%M:%S") if isinstance(ts_medicao, datetime) else str(ts_medicao)
+    
+    # Obtém o dicionário persistente do st.cache_resource
+    controle = obter_controle_alertas()
+    ultimos_alertas = controle["ultimos_alertas"]
+    agora = time.time()
+
+    # Definição das regras de limite requeridas pelo usuário:
+    # Oxigênio: < 4.0 mg/L
+    # Temperatura: < 26.0°C ou > 32.0°C
+    # pH: < 7.2 ou > 8.5
+    parametros_teste = [
+        {
+            "nome": "Oxigênio Dissolvido",
+            "valor_atual": o2,
+            "valor_str": f"{o2:.2f} mg/L",
+            "fora_da_faixa": o2 < 4.0,
+            "faixa_ideal": ">= 4.0 mg/L"
+        },
+        {
+            "nome": "Temperatura",
+            "valor_atual": temp,
+            "valor_str": f"{temp:.1f} °C",
+            "fora_da_faixa": temp < 26.0 or temp > 32.0,
+            "faixa_ideal": "26.0 °C a 32.0 °C"
+        },
+        {
+            "nome": "pH da Água",
+            "valor_atual": ph,
+            "valor_str": f"{ph:.2f}",
+            "fora_da_faixa": ph < 7.2 or ph > 8.5,
+            "faixa_ideal": "7.2 a 8.5"
+        }
+    ]
+
+    for item in parametros_teste:
+        if item["fora_da_faixa"]:
+            nome = item["nome"]
+            ultimo_envio = ultimos_alertas.get(nome, 0)
+            
+            # Verifica se já se passou o intervalo do anti-flood
+            if agora - ultimo_envio >= INTERVALO_ALERTA_SEGUNDOS:
+                enviou = enviar_email_alerta(
+                    parametro=nome,
+                    valor_atual=item["valor_str"],
+                    faixa_ideal=item["faixa_ideal"],
+                    horario_medicao=ts_str
+                )
+                if enviou:
+                    # Registra a hora atual em segundos
+                    ultimos_alertas[nome] = agora
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  CSS GLOBAL — Tema "oceano profundo" otimizado para mobile
@@ -331,6 +487,9 @@ o2     = float(ultima["oxigenio"])
 temp   = float(ultima["temperatura"])
 ph     = float(ultima["ph"])
 ts_ult = ultima["timestamp"]
+
+# ── Verificação de Alertas por E-mail (com anti-flood) ─────────────────────────
+verificar_e_enviar_alertas(ultima)
 
 # Regras de status
 alerta_o2    = o2 < 3.0
